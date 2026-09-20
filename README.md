@@ -45,6 +45,25 @@ real score. Also, `score_lead`'s `job_type` is constrained to
 scoring formula uses), while `book_slot`'s `job_type` stays free text for
 the human-readable appointment description.
 
+**Phase 4 (code complete, not yet verified — waiting on your Stripe
+credentials and platform setup):** `/api/stripe/webhook` handles deposit
+payments and new client signups, and `send_payment_link` creates real
+Stripe Checkout sessions. This goes beyond SPEC.md's original Phase 1
+design in one deliberate way: **deposits route directly to each client's
+own bank account via Stripe Connect**, not into your account. SPEC.md's
+own plan was to collect all deposits into your account and pay clients out
+manually every Friday, deferring real Stripe Connect as "about a day of
+work" for later — but that means real client money would sit in your
+account, which isn't something you want to ask a client to accept. So
+Stripe Connect is built now instead: every new client gets their own
+Stripe Express account (a short one-time "how do you want to get paid"
+link, texted to them right after they sign up), and no deposit can be
+collected for a client until they've completed it — `send_payment_link`
+checks this and gracefully tells the customer "the deposit will be
+collected another way" if it's not done yet, rather than ever routing
+money to the wrong place. See "Stripe setup" below for what this requires
+from you.
+
 ## One-time setup
 
 1. Copy the env template and fill it in as you get each key:
@@ -71,6 +90,33 @@ the human-readable appointment description.
    ```
    npm run db:seed
    ```
+6. When you get to Phase 4, also run the second migration the same way —
+   SQL Editor → paste `supabase/migrations/0002_stripe_connect.sql` → Run.
+
+## Stripe setup (Phase 4)
+
+Three things only you can do, in the Stripe Dashboard, before Phase 4's
+tests can run:
+
+1. **Enable Connect.** Go to Dashboard → search "Connect" → click "Get
+   started." Answer the platform-profile questions and accept the Connect
+   agreement. This unlocks creating connected accounts for your clients —
+   without it, nothing in Phase 4's Stripe Connect code will work.
+2. **Get your test-mode secret key.** Make sure the toggle in the top-right
+   of the Dashboard says "Test mode," then Developers → API keys → reveal
+   the "Secret key" (starts with `sk_test_...`). Paste it to me when asked.
+3. **Create a webhook endpoint** (once you have a real deployed URL — this
+   is a Phase 7 step, not needed for local testing): Developers → Webhooks
+   → Add endpoint. Check **"Also listen for events on Connected
+   accounts"** — easy to miss, but it means one endpoint and one signing
+   secret handle both deposit payments and Connect onboarding events,
+   instead of needing two. Select `checkout.session.completed` and
+   `account.updated` as the events to send.
+
+For local testing before you have a deployed URL, I generate my own
+temporary webhook secret and simulate Stripe's webhook deliveries myself
+(signed the same way Stripe signs them) — you don't need to do anything
+for that part.
 
 ## Everyday commands
 
@@ -81,6 +127,8 @@ the human-readable appointment description.
 | `npm run db:seed` | Creates/updates your seed business + availability |
 | `npm run test:voice` | Simulates a real Twilio call to `/api/twilio/voice` (needs `npm run dev` running in another terminal) |
 | `npm run test:sms` | Runs a full simulated booking conversation through `/api/twilio/sms` (needs `npm run dev` running) |
+| `npm run test:stripe` | Tests the deposit-paid and new-client-signup webhook flows (needs `npm run dev` running) |
+| `npm run test:stripe-connect` | Walks through Stripe Connect onboarding for the seed business and confirms a deposit routes to it (needs `npm run dev` running; prints a URL for you to open once) |
 | `npm run lint` | Checks code style |
 | `npx tsc --noEmit` | Type-checks the whole project |
 

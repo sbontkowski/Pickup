@@ -9,6 +9,8 @@ export interface Business {
   deposit_cents: number;
   deposit_label: string | null;
   stripe_customer_id: string | null;
+  stripe_connect_account_id: string | null;
+  stripe_connect_status: "not_started" | "pending" | "active";
   plan: "catch" | "answer";
   status: "trial" | "active" | "paused";
 }

@@ -44,7 +44,7 @@ export const env = {
   get GOOGLE_AGENT_CALLER_IDS() {
     return optional("GOOGLE_AGENT_CALLER_IDS");
   },
-  get OWNER_FALLBACK_CELL() {
-    return optional("OWNER_FALLBACK_CELL");
+  get APP_BASE_URL() {
+    return optional("APP_BASE_URL") ?? "http://localhost:3000";
   },
 };

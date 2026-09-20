@@ -3,6 +3,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOpenWindows } from "@/lib/availability";
 import { computeLeadScore, computeEstValueCents, type Urgency } from "@/lib/lead-score";
 import { sendBookingLiveLine, sendEscalationAlert } from "@/lib/owner-alerts";
+import { getStripeClient } from "@/lib/stripe";
+import { env } from "@/lib/env";
 import type { Business, Lead } from "@/lib/types";
 
 export interface ToolContext {
@@ -100,7 +102,7 @@ export async function executeAgentTool(
     case "book_slot":
       return bookSlotTool(input, ctx);
     case "send_payment_link":
-      return sendPaymentLinkTool(input);
+      return sendPaymentLinkTool(input, ctx);
     case "escalate_to_owner":
       return escalateToOwnerTool(input, ctx);
     case "score_lead":
@@ -224,23 +226,106 @@ async function bookSlotTool(input: Record<string, unknown>, ctx: ToolContext): P
   };
 }
 
-async function sendPaymentLinkTool(input: Record<string, unknown>): Promise<ToolResult> {
+async function sendPaymentLinkTool(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const appointmentId = String(input.appointment_id ?? "");
   if (!appointmentId) {
     return { content: "appointment_id is required.", isError: true };
   }
 
-  // Stripe isn't wired up until Phase 4 (SPEC.md build order). Until then,
-  // degrade gracefully instead of failing the whole conversation.
+  // Degrade gracefully if Stripe isn't configured yet, instead of failing
+  // the whole conversation.
   if (!process.env.STRIPE_SECRET_KEY) {
-    console.warn(`send_payment_link called for appointment ${appointmentId} but Stripe isn't configured yet (Phase 4).`);
+    console.warn(`send_payment_link called for appointment ${appointmentId} but Stripe isn't configured yet.`);
     return {
       content:
         "Online payment isn't set up yet. Tell the customer the deposit will be collected another way, and finish confirming the appointment.",
     };
   }
 
-  return { content: "Stripe integration not yet implemented.", isError: true };
+  if (ctx.business.deposit_cents <= 0) {
+    return { content: "This business doesn't collect a deposit — just confirm the appointment." };
+  }
+
+  // Never route money anywhere until the business has verifiably finished
+  // their own Stripe Connect onboarding — no deposit ever lands in the
+  // platform account by accident.
+  if (ctx.business.stripe_connect_status !== "active" || !ctx.business.stripe_connect_account_id) {
+    console.warn(`send_payment_link called for business ${ctx.business.id} but Connect isn't active yet (status=${ctx.business.stripe_connect_status}).`);
+    return {
+      content:
+        "Online payment isn't set up yet. Tell the customer the deposit will be collected another way, and finish confirming the appointment.",
+    };
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data: appointment, error: apptError } = await supabase
+    .from("appointments")
+    .select("id, starts_at")
+    .eq("id", appointmentId)
+    .single();
+
+  if (apptError || !appointment) {
+    return { content: "Could not find that appointment.", isError: true };
+  }
+
+  const stripe = getStripeClient();
+  const dateLabel = new Date(appointment.starts_at).toLocaleDateString("en-US", {
+    timeZone: ctx.business.timezone,
+    weekday: "short",
+    month: "numeric",
+    day: "numeric",
+  });
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: ctx.business.deposit_cents,
+            product_data: {
+              name: `${ctx.business.name} — ${ctx.business.deposit_label ?? "deposit"} for ${dateLabel}`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      payment_intent_data: {
+        // Destination charge: the charge stays on the platform account
+        // (so our webhook and Dashboard see it normally), but the funds
+        // settle to the business's own connected account. No
+        // application_fee_amount — flat SaaS pricing, no per-deposit cut.
+        transfer_data: { destination: ctx.business.stripe_connect_account_id },
+      },
+      metadata: { appointment_id: appointmentId },
+      success_url: `${env.APP_BASE_URL}/pay/success`,
+      cancel_url: `${env.APP_BASE_URL}/pay/cancel`,
+    });
+  } catch (err) {
+    console.error("Stripe checkout session creation failed:", err instanceof Error ? err.message : err);
+    return { content: "Payment link creation failed. Tell the customer the deposit will be collected another way.", isError: true };
+  }
+
+  const { error: paymentError } = await supabase.from("payments").insert({
+    appointment_id: appointmentId,
+    stripe_session_id: session.id,
+    amount_cents: ctx.business.deposit_cents,
+    status: "pending",
+  });
+  if (paymentError) {
+    console.error("Failed to insert payments row:", paymentError.message);
+  }
+
+  await supabase.from("appointments").update({ deposit_status: "sent" }).eq("id", appointmentId);
+
+  return {
+    content: JSON.stringify({
+      payment_url: session.url,
+      note: "Include this exact URL in your reply to the customer.",
+    }),
+  };
 }
 
 async function escalateToOwnerTool(input: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {

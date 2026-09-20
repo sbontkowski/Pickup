@@ -10,7 +10,9 @@
     "db:verify": "tsx --env-file=.env.local scripts/verify-schema.ts",
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
     "test:voice": "tsx --env-file=.env.local scripts/test-voice-webhook.ts",
-    "test:sms": "tsx --env-file=.env.local scripts/test-sms-conversation.ts"
+    "test:sms": "tsx --env-file=.env.local scripts/test-sms-conversation.ts",
+    "test:stripe": "tsx --env-file=.env.local scripts/test-stripe-webhook.ts",
+    "test:stripe-connect": "tsx --env-file=.env.local scripts/test-stripe-connect.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
@@ -19,6 +21,7 @@
     "next": "15.5.25",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "stripe": "^22.6.2",
     "twilio": "^6.1.1"
   },
   "devDependencies": {
