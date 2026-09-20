@@ -7,8 +7,11 @@ text fails. It grows as each build phase lands.
 
 ## Status
 
-Phase 1 done: app scaffold, database schema, seed script. Not live yet —
-no Twilio, agent, or Stripe wiring exists until later phases.
+Phase 1 done and verified against a real Supabase project: all 8 tables
+exist, `/api/health` confirms live database connectivity, and one seed
+business ("Queen City Comfort") with 20 weekly availability windows is in
+the database. Not live yet — no Twilio, agent, or Stripe wiring exists
+until later phases.
 
 ## One-time setup
 
