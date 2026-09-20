@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:verify": "tsx scripts/verify-schema.ts",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:verify": "tsx --env-file=.env.local scripts/verify-schema.ts",
+    "db:seed": "tsx --env-file=.env.local scripts/seed.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
