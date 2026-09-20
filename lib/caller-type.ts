@@ -11,3 +11,10 @@ export function isGoogleAgentCallerId(fromNumber: string): boolean {
     .filter(Boolean)
     .some((prefix) => fromNumber.startsWith(prefix));
 }
+
+// A text-based fallback for automated callers when the caller ID range
+// doesn't match: "on behalf of" plus "automated" or "assistant".
+export function looksLikeAutomatedAgentText(body: string): boolean {
+  const lower = body.toLowerCase();
+  return lower.includes("on behalf of") && (lower.includes("automated") || lower.includes("assistant"));
+}

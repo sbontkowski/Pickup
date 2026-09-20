@@ -20,6 +20,31 @@ live yet — no public webhook URL exists until Phase 7's deploy, so this
 has only been proven with a simulated (but correctly signed) request
 against a local dev server, not a real inbound phone call.
 
+Phase 3 done and verified with a full simulated conversation: `/api/twilio/sms`
+resolves the caller to a business (via an open lead, or the most recent
+missed call), runs the Claude agent loop (`claude-sonnet-4-5`, the five
+tools from SPEC.md, up to 4 tool calls per turn), and a real booking
+happened — name, address, urgency, an offered slot, and a booked
+appointment, with the owner's Live Line text sent and a lead score/est.
+value computed in code (never by the model). Also verified: a frustrated
+customer gets escalated to the owner, and killing the Anthropic key
+produces the spec's required graceful fallback ("Got it — the owner will
+text you shortly") instead of a crash. `send_payment_link` is a stub until
+Phase 4 wires up real Stripe Checkout — it currently tells the customer
+the deposit will be collected another way, which is a deliberate,
+documented simplification, not a bug.
+
+**One documented deviation from SPEC.md's literal wording:** the spec's
+system prompt says to call `score_lead` "after the conversation is
+complete," but `score_lead`'s own inputs (job type, urgency) are known
+well before that, and the Owner Live Line needs a score *at booking time*.
+The system prompt here calls `score_lead` right after qualifying the
+customer, before offering slots, so `book_slot`'s Live Line always has a
+real score. Also, `score_lead`'s `job_type` is constrained to
+`replacement`/`repair`/`maintenance` (the three categories the spec's own
+scoring formula uses), while `book_slot`'s `job_type` stays free text for
+the human-readable appointment description.
+
 ## One-time setup
 
 1. Copy the env template and fill it in as you get each key:
@@ -55,6 +80,7 @@ against a local dev server, not a real inbound phone call.
 | `npm run db:verify` | Confirms all tables exist and are reachable |
 | `npm run db:seed` | Creates/updates your seed business + availability |
 | `npm run test:voice` | Simulates a real Twilio call to `/api/twilio/voice` (needs `npm run dev` running in another terminal) |
+| `npm run test:sms` | Runs a full simulated booking conversation through `/api/twilio/sms` (needs `npm run dev` running) |
 | `npm run lint` | Checks code style |
 | `npx tsc --noEmit` | Type-checks the whole project |
 
