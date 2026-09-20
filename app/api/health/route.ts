@@ -5,7 +5,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export async function GET() {
   try {
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase.from("businesses").select("id", { head: true, count: "exact" });
+    // Not head:true — HEAD responses have no body, so error details are lost.
+    const { error } = await supabase.from("businesses").select("id").limit(1);
     if (error) throw error;
     return NextResponse.json({ ok: true, database: "reachable" });
   } catch (err) {

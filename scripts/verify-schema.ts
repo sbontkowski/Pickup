@@ -20,9 +20,12 @@ async function main() {
   let allOk = true;
 
   for (const table of TABLES) {
+    // Not head:true — HEAD responses have no body, so PostgREST error
+    // details (e.g. "table not found") get lost and error.message is empty.
     const { error, count } = await supabase
       .from(table)
-      .select("*", { count: "exact", head: true });
+      .select("id", { count: "exact" })
+      .limit(1);
 
     if (error) {
       allOk = false;
