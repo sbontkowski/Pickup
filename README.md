@@ -10,8 +10,15 @@ text fails. It grows as each build phase lands.
 Phase 1 done and verified against a real Supabase project: all 8 tables
 exist, `/api/health` confirms live database connectivity, and one seed
 business ("Queen City Comfort") with 20 weekly availability windows is in
-the database. Not live yet — no Twilio, agent, or Stripe wiring exists
-until later phases.
+the database.
+
+Phase 2 done and verified end-to-end: `/api/twilio/voice` validates the
+Twilio signature (confirmed a forged request gets rejected with 403),
+writes every call to the `calls` table before doing anything else, returns
+the TwiML greeting, and sends a real text-back SMS through Twilio. Not
+live yet — no public webhook URL exists until Phase 7's deploy, so this
+has only been proven with a simulated (but correctly signed) request
+against a local dev server, not a real inbound phone call.
 
 ## One-time setup
 
@@ -47,6 +54,7 @@ until later phases.
 | `npm run dev` | Runs the app locally at http://localhost:3000 |
 | `npm run db:verify` | Confirms all tables exist and are reachable |
 | `npm run db:seed` | Creates/updates your seed business + availability |
+| `npm run test:voice` | Simulates a real Twilio call to `/api/twilio/voice` (needs `npm run dev` running in another terminal) |
 | `npm run lint` | Checks code style |
 | `npx tsc --noEmit` | Type-checks the whole project |
 
