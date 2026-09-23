@@ -39,7 +39,7 @@ async function postSignedEvent(eventBody: object) {
 async function testDepositFlow() {
   console.log("--- Deposit flow ---");
   const supabase = getSupabaseAdmin();
-  const { data: business } = await supabase.from("businesses").select("*").limit(1).single();
+  const { data: business } = await supabase.from("businesses").select("*").order("created_at", { ascending: true }).limit(1).single();
   if (!business) throw new Error("No seed business. Run npm run db:seed first.");
   if (business.deposit_cents <= 0) throw new Error("Seed business has no deposit configured.");
 

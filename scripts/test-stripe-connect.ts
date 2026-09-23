@@ -92,7 +92,7 @@ async function postSignedAccountUpdated(account: Stripe.Account) {
 
 async function main() {
   const supabase = getSupabaseAdmin();
-  const { data: business } = await supabase.from("businesses").select("*").limit(1).single();
+  const { data: business } = await supabase.from("businesses").select("*").order("created_at", { ascending: true }).limit(1).single();
   if (!business) throw new Error("No seed business. Run npm run db:seed first.");
 
   if (business.stripe_connect_status !== "active") {
