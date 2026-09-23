@@ -3,9 +3,10 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getTwilioClient, isValidTwilioRequest, formDataToParams } from "@/lib/twilio";
 import { env } from "@/lib/env";
 import { isGoogleAgentCallerId, looksLikeAutomatedAgentText } from "@/lib/caller-type";
-import { getAnthropicClient, AGENT_MODEL, AGENT_MAX_TOKENS, AGENT_TEMPERATURE, AGENT_MAX_TOOL_ITERATIONS } from "@/lib/anthropic";
+import { runToolLoop } from "@/lib/anthropic";
 import { AGENT_TOOLS, executeAgentTool, type ToolContext } from "@/lib/agent-tools";
 import { buildSystemPrompt } from "@/lib/system-prompt";
+import { runOwnerAgent } from "@/lib/owner-agent";
 import type { Business, Lead } from "@/lib/types";
 
 const EMPTY_TWIML = new Response("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>", {
@@ -58,16 +59,30 @@ export async function POST(request: Request) {
     return EMPTY_TWIML;
   }
 
-  // Owner command handling (ask-your-desk) is Phase 5. For now, don't run
-  // the customer agent against an owner's own cell.
+  // Owner texts (from their own cell) go to the ask-your-desk agent, never
+  // the customer-facing one.
   const { data: ownerBusiness } = await supabase
     .from("businesses")
-    .select("id")
+    .select("*")
     .eq("owner_cell", from)
     .maybeSingle();
 
   if (ownerBusiness) {
-    console.log(`Owner ${from} texted in; ask-your-desk isn't built yet (Phase 5).`);
+    let replyText: string;
+    try {
+      replyText = await runOwnerAgent(ownerBusiness as Business, body);
+    } catch (err) {
+      console.error("Owner agent failed:", err instanceof Error ? err.message : err);
+      replyText = `Something went wrong on our end — text Steven at ${env.SUPPORT_CELL}.`;
+    }
+
+    await supabase.from("events").insert({
+      business_id: ownerBusiness.id,
+      type: "owner_command",
+      data: { message: body, reply: replyText },
+    });
+
+    await sendSms(from, replyText);
     return EMPTY_TWIML;
   }
 
@@ -187,54 +202,19 @@ async function runAgentLoop(
   business: Business,
   ctx: ToolContext
 ): Promise<string> {
-  const client = getAnthropicClient();
-  const system = buildSystemPrompt(business);
-  const messages = [...initialMessages];
+  const result = await runToolLoop({
+    system: buildSystemPrompt(business),
+    tools: AGENT_TOOLS,
+    messages: initialMessages,
+    executeTool: (name, input) => executeAgentTool(name, input, ctx),
+  });
 
-  for (let iteration = 0; iteration < AGENT_MAX_TOOL_ITERATIONS; iteration++) {
-    const response = await client.messages.create({
-      model: AGENT_MODEL,
-      max_tokens: AGENT_MAX_TOKENS,
-      temperature: AGENT_TEMPERATURE,
-      system,
-      tools: AGENT_TOOLS,
-      messages,
-    });
-
-    if (response.stop_reason !== "tool_use") {
-      return extractText(response.content) || "Got it — one moment.";
-    }
-
-    messages.push({ role: "assistant", content: response.content });
-
-    const toolUseBlocks = response.content.filter(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-    );
-
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-    for (const toolUse of toolUseBlocks) {
-      const result = await executeAgentTool(toolUse.name, toolUse.input as Record<string, unknown>, ctx);
-      toolResults.push({
-        type: "tool_result",
-        tool_use_id: toolUse.id,
-        content: result.content,
-        is_error: result.isError,
-      });
-    }
-
-    messages.push({ role: "user", content: toolResults });
+  if (!result.hitIterationCap) {
+    return result.text || "Got it — one moment.";
   }
 
   // Ran out of tool-call budget for this turn without a plain-text reply.
-  console.warn(`Agent hit the ${AGENT_MAX_TOOL_ITERATIONS}-iteration cap for lead ${ctx.lead.id}; escalating.`);
+  console.warn(`Agent hit the tool-call cap for lead ${ctx.lead.id}; escalating.`);
   await executeAgentTool("escalate_to_owner", { reason: "Agent could not resolve within tool-call budget" }, ctx);
   return "Let me get the owner to help you directly — they'll text you shortly.";
-}
-
-function extractText(content: Anthropic.ContentBlock[]): string {
-  return content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join(" ")
-    .trim();
 }

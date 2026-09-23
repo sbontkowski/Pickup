@@ -47,4 +47,9 @@ export const env = {
   get APP_BASE_URL() {
     return optional("APP_BASE_URL") ?? "http://localhost:3000";
   },
+  // Steven's own cell — the fallback the owner agent gives clients for
+  // anything it can't do yet ("text Steven at {number}").
+  get SUPPORT_CELL() {
+    return required("SUPPORT_CELL");
+  },
 };
