@@ -143,15 +143,29 @@ async function main() {
   if (result.isError) throw new Error(`send_payment_link failed: ${result.content}`);
 
   const { payment_url } = JSON.parse(result.content);
-  console.log(`Created checkout session: ${payment_url}`);
+  console.log(`\nOpen this URL and pay with the test card 4242 4242 4242 4242, any future`);
+  console.log(`expiry, any CVC, any zip:\n${payment_url}\n`);
+  console.log("Waiting for payment to complete...");
 
   const { data: payment } = await supabase.from("payments").select("stripe_session_id").eq("appointment_id", appointment!.id).single();
   const stripe = getStripeClient();
-  const session = await stripe.checkout.sessions.retrieve(payment!.stripe_session_id, { expand: ["payment_intent"] });
+
+  const start = Date.now();
+  let session: Stripe.Checkout.Session;
+  while (true) {
+    session = await stripe.checkout.sessions.retrieve(payment!.stripe_session_id, { expand: ["payment_intent"] });
+    if (session.payment_status === "paid") break;
+    if (Date.now() - start > 5 * 60 * 1000) {
+      throw new Error("Timed out waiting for payment. Run the script again after paying.");
+    }
+    process.stdout.write(".");
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+
   const paymentIntent = session.payment_intent as Stripe.PaymentIntent;
   const destination = paymentIntent.transfer_data?.destination;
 
-  console.log(`PaymentIntent transfer_data.destination: ${destination}`);
+  console.log(`\nPaymentIntent transfer_data.destination: ${destination}`);
   console.log(`Business's connected account:            ${activeBusiness!.stripe_connect_account_id}`);
 
   if (destination !== activeBusiness!.stripe_connect_account_id) {
@@ -159,6 +173,27 @@ async function main() {
   }
 
   console.log("\nPASS: deposit is routed directly to the business's own Stripe account.");
+  console.log("\nSimulating Stripe delivering checkout.session.completed for this real payment...");
+
+  const eventBody = {
+    id: `evt_test_${Math.random().toString(16).slice(2)}`,
+    type: "checkout.session.completed",
+    data: { object: { id: session.id, mode: "payment", amount_total: session.amount_total, metadata: session.metadata } },
+  };
+  const payload = JSON.stringify(eventBody);
+  const header = Stripe.webhooks.generateTestHeaderString({ payload, secret: webhookSecret! });
+  const res = await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "stripe-signature": header }, body: payload });
+  if (!res.ok) throw new Error(`Webhook POST failed: ${res.status} ${await res.text()}`);
+
+  await new Promise((r) => setTimeout(r, 1500));
+  const { data: confirmedAppt } = await supabase.from("appointments").select("status, deposit_status").eq("id", appointment!.id).single();
+  console.log(`appointment: status=${confirmedAppt!.status}, deposit_status=${confirmedAppt!.deposit_status}`);
+
+  if (confirmedAppt!.status !== "confirmed" || confirmedAppt!.deposit_status !== "paid") {
+    throw new Error("Webhook did not confirm the appointment after payment.");
+  }
+
+  console.log("\nPASS: the full deposit flow works — real Stripe Connect payment, correct destination, appointment confirmed.");
 }
 
 main().catch((err) => {

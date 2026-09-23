@@ -292,6 +292,10 @@ async function sendPaymentLinkTool(input: Record<string, unknown>, ctx: ToolCont
           quantity: 1,
         },
       ],
+      // Managed Payments (Stripe's newer merchant-of-record mode, on by
+      // default) is incompatible with Connect destination charges — must
+      // be explicitly disabled per-session to use transfer_data below.
+      managed_payments: { enabled: false },
       payment_intent_data: {
         // Destination charge: the charge stays on the platform account
         // (so our webhook and Dashboard see it normally), but the funds
