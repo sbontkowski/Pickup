@@ -31,13 +31,17 @@ const OWNER_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "update_availability",
-    description: "Closes or opens a bookable window, e.g. 'close Friday afternoon' or 'open Sat 8-12'.",
+    description:
+      "Closes or opens a bookable window, e.g. 'close Friday afternoon' or 'open Sat 8-12'. " +
+      "For a time-of-day phrase, translate it to explicit start_time/end_time before calling: " +
+      "morning = 00:00-12:00, afternoon = 12:00-17:00, evening = 17:00-24:00. " +
+      "Only omit start_time/end_time on 'close' when the owner means the entire day (e.g. 'close Friday').",
     input_schema: {
       type: "object",
       properties: {
         action: { type: "string", enum: ["close", "open"] },
         weekday: { type: "string", description: "e.g. Monday, Tuesday, ... Saturday, Sunday" },
-        start_time: { type: "string", description: "24-hour HH:MM, required for 'open', optional for 'close' (omit to close the whole day)" },
+        start_time: { type: "string", description: "24-hour HH:MM, required for 'open', optional for 'close' (omit only to close the whole day)" },
         end_time: { type: "string", description: "24-hour HH:MM, required for 'open', optional for 'close'" },
       },
       required: ["action", "weekday"],

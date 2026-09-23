@@ -66,7 +66,7 @@ activation, a real $89 test payment with card 4242 4242 4242 4242) — the
 resulting PaymentIntent's `transfer_data.destination` was confirmed to
 match the client's own connected account, and the webhook correctly
 flipped the appointment to `confirmed`. See "Stripe setup" below for what
-this requires
+this requires from you.
 
 **Two more Stripe API changes discovered and fixed during testing** (both
 very recent, not documented in most references yet): Stripe now blocks
@@ -75,7 +75,19 @@ integrations (fixed by enabling "Accounts v1 support" in your dashboard —
 see "Stripe setup"), and newer accounts have "Managed Payments" on by
 default, which is incompatible with Connect destination charges (fixed in
 code — `send_payment_link` explicitly disables it per-session).
-from you.
+
+Phase 5 done and verified: owner texts (from `businesses.owner_cell`) now
+go to a second Claude agent — "ask-your-desk" — that answers questions
+from the last 7 days of calls/leads/appointments ("who called today,"
+"any emergencies," "how many missed this week"), texts a customer on the
+owner's behalf ("text Maria we're running 20 late"), opens or closes
+bookable windows ("close Friday afternoon," "open Sat 8-12"), and
+pauses/resumes automatic text-backs — all verified against a live server.
+Anything outside that scope gets the spec's exact fallback: "I can't do
+that yet — text Steven at {`SUPPORT_CELL`}." Not yet built (needs Vercel
+Cron, coming in Phase 6): the two time-delayed Live Line nudges — "10
+minutes after the last customer message" and "missed call, no reply after
+30 minutes." Booking and escalation Live Lines already work (Phase 3).
 
 ## One-time setup
 
@@ -142,6 +154,7 @@ for that part.
 | `npm run test:sms` | Runs a full simulated booking conversation through `/api/twilio/sms` (needs `npm run dev` running) |
 | `npm run test:stripe` | Tests the deposit-paid and new-client-signup webhook flows (needs `npm run dev` running) |
 | `npm run test:stripe-connect` | Walks through Stripe Connect onboarding for the seed business and confirms a deposit routes to it (needs `npm run dev` running; prints a URL for you to open once) |
+| `npm run test:owner` | Tests every ask-your-desk owner command (needs `npm run dev` running) |
 | `npm run lint` | Checks code style |
 | `npx tsc --noEmit` | Type-checks the whole project |
 
