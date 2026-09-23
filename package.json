@@ -1,0 +1,41 @@
+{
+  "name": "pickup",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:verify": "tsx --env-file=.env.local scripts/verify-schema.ts",
+    "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "test:voice": "tsx --env-file=.env.local scripts/test-voice-webhook.ts",
+    "test:sms": "tsx --env-file=.env.local scripts/test-sms-conversation.ts",
+    "test:stripe": "tsx --env-file=.env.local scripts/test-stripe-webhook.ts",
+    "test:stripe-connect": "tsx --env-file=.env.local scripts/test-stripe-connect.ts",
+    "test:owner": "tsx --env-file=.env.local scripts/test-owner-agent.ts",
+    "test:onboarding": "tsx --env-file=.env.local scripts/test-onboarding.ts",
+    "test:weekly-report": "tsx --env-file=.env.local scripts/test-weekly-report.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
+    "@supabase/supabase-js": "^2.116.0",
+    "luxon": "^3.7.2",
+    "next": "15.5.25",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "stripe": "^22.6.2",
+    "twilio": "^6.1.1"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/luxon": "^3.7.5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.25",
+    "tsx": "^4.23.13",
+    "typescript": "^5"
+  }
+}
