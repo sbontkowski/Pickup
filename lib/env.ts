@@ -38,8 +38,17 @@ export const env = {
   get STRIPE_SECRET_KEY() {
     return required("STRIPE_SECRET_KEY");
   },
+  // Stripe's newer webhook setup requires a separate destination per event
+  // scope — "Your account" (checkout.session.completed) vs "Connected
+  // accounts" (account.updated) — each with its own signing secret, even
+  // when both point at this same URL. STRIPE_CONNECT_WEBHOOK_SECRET is
+  // optional so a single-destination setup (old-style, one secret for
+  // both scopes) still works.
   get STRIPE_WEBHOOK_SECRET() {
     return required("STRIPE_WEBHOOK_SECRET");
+  },
+  get STRIPE_CONNECT_WEBHOOK_SECRET() {
+    return optional("STRIPE_CONNECT_WEBHOOK_SECRET");
   },
   get GOOGLE_AGENT_CALLER_IDS() {
     return optional("GOOGLE_AGENT_CALLER_IDS");

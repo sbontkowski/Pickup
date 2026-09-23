@@ -24,11 +24,26 @@ export async function POST(request: Request) {
   }
 
   const stripe = getStripeClient();
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.error("Stripe signature verification failed:", err instanceof Error ? err.message : err);
+  // Two possible signing secrets: the main destination (checkout.session.completed,
+  // "Your account" scope) and the Connect destination (account.updated,
+  // "Connected accounts" scope) each sign with their own secret, even
+  // though both point at this same URL.
+  const secrets = [env.STRIPE_WEBHOOK_SECRET, env.STRIPE_CONNECT_WEBHOOK_SECRET].filter(
+    (s): s is string => Boolean(s)
+  );
+
+  let event: Stripe.Event | null = null;
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(rawBody, signature, secret);
+      break;
+    } catch {
+      // Try the next secret.
+    }
+  }
+
+  if (!event) {
+    console.error("Stripe signature verification failed against all configured secrets.");
     return new Response("Invalid signature", { status: 400 });
   }
 
