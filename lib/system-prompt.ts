@@ -1,14 +1,23 @@
-import type { Business } from "@/lib/types";
+import type { Business, Lead } from "@/lib/types";
 
 // Filled from businesses.facts per SPEC.md "Conversational agent spec".
 // facts is rendered as raw JSON (not summarized) so nothing the model says
 // can diverge from what's actually stored.
-export function buildSystemPrompt(business: Business): string {
+//
+// Only plain-text thread history is replayed between turns (no
+// tool_use/tool_result memory — see lib/anthropic.ts), so without this the
+// model can't tell whether it already called score_lead or book_slot on an
+// earlier turn and may redundantly re-call them, burning tool-call budget.
+// Passing the lead's current DB state lets it skip the redundant work.
+export function buildSystemPrompt(business: Business, lead: Lead): string {
   const facts = business.facts as Record<string, unknown>;
   const name = business.name;
   const trade = typeof facts.trade === "string" ? facts.trade : "service";
   const city = typeof facts.city === "string" ? facts.city : "";
   const depositLabel = business.deposit_label || "deposit";
+
+  const alreadyBooked = lead.status === "booked" || lead.status === "confirmed";
+  const alreadyScored = Boolean(lead.job_type && lead.urgency);
 
   return `You are the text-message front desk for ${name}, a ${trade} company${
     city ? ` in ${city}` : ""
@@ -16,6 +25,13 @@ export function buildSystemPrompt(business: Business): string {
 
 Business facts (only source of truth — never invent prices, hours, or services):
 ${JSON.stringify(facts, null, 2)}
+
+What's already on file for this customer (don't ask again, don't call score_lead or book_slot again for these — only the plain-text thread below is remembered between texts, this record is the source of truth for what's already been done):
+- status: ${lead.status}
+- name: ${lead.name ?? "not yet known"}
+- address: ${lead.address ?? "not yet known"}${lead.zip ? `, zip ${lead.zip}` : ""}
+- job type / urgency: ${alreadyScored ? `${lead.job_type}, ${lead.urgency}` : "not yet recorded"}
+${alreadyBooked ? "- This lead already has a booked appointment. If they're confirming, thanking you, or asking something unrelated, just reply briefly — do not call book_slot again." : ""}
 
 Rules:
 - Ask what's going on first, then their name, then the service address (street + zip), then how urgent (no heat/no cool/leak = emergency). You need their name and address before you can book — never call book_slot with a placeholder name.

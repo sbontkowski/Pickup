@@ -212,7 +212,7 @@ async function runAgentLoop(
   ctx: ToolContext
 ): Promise<string> {
   const result = await runToolLoop({
-    system: buildSystemPrompt(business),
+    system: buildSystemPrompt(business, ctx.lead),
     tools: AGENT_TOOLS,
     messages: initialMessages,
     executeTool: (name, input) => executeAgentTool(name, input, ctx),
@@ -223,7 +223,19 @@ async function runAgentLoop(
   }
 
   // Ran out of tool-call budget for this turn without a plain-text reply.
-  console.warn(`Agent hit the tool-call cap for lead ${ctx.lead.id}; escalating.`);
+  console.warn(`Agent hit the tool-call cap for lead ${ctx.lead.id}.`);
+
+  if (ctx.bookedAppointment) {
+    // The booking (and maybe the payment link) already succeeded earlier in
+    // this same turn — never mask that with a false "let me get the owner"
+    // escalation, which would also overwrite the lead's status back to
+    // "escalated" and fire a bogus alert for an already-handled booking.
+    const depositLine = ctx.paymentUrl
+      ? ` To pay the ${ctx.business.deposit_label ?? "deposit"}: ${ctx.paymentUrl}`
+      : "";
+    return `You're all set for ${ctx.bookedAppointment.label}.${depositLine} We'll follow up if we need anything else.`;
+  }
+
   await executeAgentTool("escalate_to_owner", { reason: "Agent could not resolve within tool-call budget" }, ctx);
   return "Let me get the owner to help you directly — they'll text you shortly.";
 }

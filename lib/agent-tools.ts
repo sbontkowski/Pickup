@@ -12,6 +12,12 @@ export interface ToolContext {
   lead: Lead;
   lastCustomerMessage: string;
   isAiAgent: boolean;
+  // Set by bookSlotTool/sendPaymentLinkTool on success so the caller can
+  // build a correct fallback reply if the model runs out of tool-call
+  // budget right after — a real booking must never be masked by a false
+  // "let me get the owner" escalation.
+  bookedAppointment?: { label: string };
+  paymentUrl?: string;
 }
 
 export interface ToolResult {
@@ -148,6 +154,15 @@ async function bookSlotTool(input: Record<string, unknown>, ctx: ToolContext): P
     .maybeSingle();
 
   if (existingAppointment) {
+    const existingLabel = new Date(existingAppointment.starts_at).toLocaleString("en-US", {
+      timeZone: ctx.business.timezone,
+      weekday: "short",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    ctx.bookedAppointment = { label: existingLabel };
     return {
       content: JSON.stringify({
         appointment_id: existingAppointment.id,
@@ -206,6 +221,7 @@ async function bookSlotTool(input: Record<string, unknown>, ctx: ToolContext): P
 
   const leadForAlert: Lead = updatedLead ?? { ...ctx.lead, name, address, zip, job_type: jobType, status: "booked" };
   ctx.lead = leadForAlert;
+  ctx.bookedAppointment = { label: match.label };
 
   try {
     await sendBookingLiveLine(ctx.business, leadForAlert, {
@@ -323,6 +339,10 @@ async function sendPaymentLinkTool(input: Record<string, unknown>, ctx: ToolCont
   }
 
   await supabase.from("appointments").update({ deposit_status: "sent" }).eq("id", appointmentId);
+
+  if (session.url) {
+    ctx.paymentUrl = session.url;
+  }
 
   return {
     content: JSON.stringify({

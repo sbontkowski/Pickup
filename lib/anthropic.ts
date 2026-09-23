@@ -2,12 +2,17 @@ import Anthropic from "@anthropic-ai/sdk";
 import { env } from "@/lib/env";
 
 // Model and settings are pinned per SPEC.md "Conversational agent spec":
-// claude-sonnet-4-5, max_tokens 400, temperature 0.3, last 30 messages,
-// up to 4 tool-call iterations per turn.
+// claude-sonnet-4-5, max_tokens 400, temperature 0.3, last 30 messages.
+// SPEC.md says "up to 4 tool-call iterations per turn", but only plain-text
+// history is replayed between turns (no tool_use/tool_result memory), so a
+// booking turn can realistically need get_availability + score_lead +
+// book_slot + send_payment_link before any final confirmation text — that's
+// 4 tool calls with zero budget left to actually reply. Raised to 6 so the
+// worst-case real chain always has room for the closing text.
 export const AGENT_MODEL = "claude-sonnet-4-5";
 export const AGENT_MAX_TOKENS = 400;
 export const AGENT_TEMPERATURE = 0.3;
-export const AGENT_MAX_TOOL_ITERATIONS = 4;
+export const AGENT_MAX_TOOL_ITERATIONS = 6;
 
 export function getAnthropicClient() {
   return new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
