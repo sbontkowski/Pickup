@@ -1,6 +1,16 @@
 import { DateTime } from "luxon";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+export const WEEKDAY_NAMES: Record<string, number> = {
+  sunday: 0, sun: 0,
+  monday: 1, mon: 1,
+  tuesday: 2, tue: 2, tues: 2,
+  wednesday: 3, wed: 3,
+  thursday: 4, thu: 4, thurs: 4,
+  friday: 5, fri: 5,
+  saturday: 6, sat: 6,
+};
+
 export interface OpenWindow {
   startsAt: string; // ISO UTC
   endsAt: string; // ISO UTC

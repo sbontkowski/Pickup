@@ -13,7 +13,8 @@
     "test:sms": "tsx --env-file=.env.local scripts/test-sms-conversation.ts",
     "test:stripe": "tsx --env-file=.env.local scripts/test-stripe-webhook.ts",
     "test:stripe-connect": "tsx --env-file=.env.local scripts/test-stripe-connect.ts",
-    "test:owner": "tsx --env-file=.env.local scripts/test-owner-agent.ts"
+    "test:owner": "tsx --env-file=.env.local scripts/test-owner-agent.ts",
+    "test:onboarding": "tsx --env-file=.env.local scripts/test-onboarding.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",

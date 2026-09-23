@@ -4,17 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getTwilioClient } from "@/lib/twilio";
 import { runToolLoop } from "@/lib/anthropic";
 import { env } from "@/lib/env";
+import { WEEKDAY_NAMES } from "@/lib/availability";
 import type { Business } from "@/lib/types";
-
-const WEEKDAY_NAMES: Record<string, number> = {
-  sunday: 0, sun: 0,
-  monday: 1, mon: 1,
-  tuesday: 2, tue: 2, tues: 2,
-  wednesday: 3, wed: 3,
-  thursday: 4, thu: 4, thurs: 4,
-  friday: 5, fri: 5,
-  saturday: 6, sat: 6,
-};
 
 const OWNER_TOOLS: Anthropic.Tool[] = [
   {
@@ -56,6 +47,20 @@ const OWNER_TOOLS: Anthropic.Tool[] = [
         status: { type: "string", enum: ["paused", "active"] },
       },
       required: ["status"],
+    },
+  },
+  {
+    name: "update_facts",
+    description:
+      "Updates the business facts the customer-facing agent quotes from (prices, hours, warranty, etc.), " +
+      "e.g. 'update: we now charge $99 diagnostic'. Pass the COMPLETE facts object — merge the owner's " +
+      "change into the current facts shown above, keeping every other field exactly as it was.",
+    input_schema: {
+      type: "object",
+      properties: {
+        facts: { type: "object", description: "The complete, updated facts object." },
+      },
+      required: ["facts"],
     },
   },
 ];
@@ -102,6 +107,9 @@ function buildOwnerSystemPrompt(business: Business, activity: Awaited<ReturnType
 
 Current time: ${now.toFormat("ccc M/d h:mm a")} (${business.timezone})
 
+Current business facts (what the customer-facing agent quotes from):
+${JSON.stringify(business.facts, null, 2)}
+
 Calls, last 7 days:
 ${JSON.stringify(activity.calls, null, 2)}
 
@@ -115,10 +123,11 @@ You can also take these actions:
 - send_message_to_lead: text a specific customer on the owner's behalf. Always confirm back to the owner that you sent it.
 - update_availability: close or open a bookable window.
 - set_business_status: pause or resume automatic text-backs to missed calls.
+- update_facts: change a price, hour, warranty line, or other business fact the customer-facing agent quotes.
 
 Be brief — one or two short sentences, plain language, no emoji.
 
-If the owner asks for anything else — anything you can't answer from the data above or do with these three actions — reply with exactly: "I can't do that yet — text Steven at ${env.SUPPORT_CELL}."`;
+If the owner asks for anything else — anything you can't answer from the data above or do with these four actions — reply with exactly: "I can't do that yet — text Steven at ${env.SUPPORT_CELL}."`;
 }
 
 async function executeOwnerTool(
@@ -133,6 +142,8 @@ async function executeOwnerTool(
       return updateAvailabilityTool(input, ctx);
     case "set_business_status":
       return setBusinessStatusTool(input, ctx);
+    case "update_facts":
+      return updateFactsTool(input, ctx);
     default:
       return { content: `Unknown tool: ${name}`, isError: true };
   }
@@ -233,6 +244,20 @@ async function setBusinessStatusTool(input: Record<string, unknown>, ctx: OwnerT
     return { content: "Failed to update status.", isError: true };
   }
   return { content: status === "paused" ? "Paused — no more automatic text-backs until resumed." : "Resumed — automatic text-backs are back on." };
+}
+
+async function updateFactsTool(input: Record<string, unknown>, ctx: OwnerToolContext) {
+  const facts = input.facts;
+  if (!facts || typeof facts !== "object" || Array.isArray(facts)) {
+    return { content: "facts must be an object.", isError: true };
+  }
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.from("businesses").update({ facts }).eq("id", ctx.business.id);
+  if (error) {
+    console.error("Failed to update facts:", error.message);
+    return { content: "Failed to update facts.", isError: true };
+  }
+  return { content: "Updated." };
 }
 
 export async function runOwnerAgent(business: Business, ownerMessage: string): Promise<string> {

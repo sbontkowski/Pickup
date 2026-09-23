@@ -7,6 +7,7 @@ import { runToolLoop } from "@/lib/anthropic";
 import { AGENT_TOOLS, executeAgentTool, type ToolContext } from "@/lib/agent-tools";
 import { buildSystemPrompt } from "@/lib/system-prompt";
 import { runOwnerAgent } from "@/lib/owner-agent";
+import { runOnboardingAgent } from "@/lib/onboarding-agent";
 import type { Business, Lead } from "@/lib/types";
 
 const EMPTY_TWIML = new Response("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response></Response>", {
@@ -68,19 +69,27 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (ownerBusiness) {
+    // No facts yet means onboarding was never finished — route there
+    // instead of ask-your-desk. Onboarding logs its own transcript.
+    const isOnboarded = Object.keys((ownerBusiness.facts as Record<string, unknown>) ?? {}).length > 0;
+
     let replyText: string;
     try {
-      replyText = await runOwnerAgent(ownerBusiness as Business, body);
+      replyText = isOnboarded
+        ? await runOwnerAgent(ownerBusiness as Business, body)
+        : await runOnboardingAgent(ownerBusiness as Business, body);
     } catch (err) {
-      console.error("Owner agent failed:", err instanceof Error ? err.message : err);
+      console.error("Owner/onboarding agent failed:", err instanceof Error ? err.message : err);
       replyText = `Something went wrong on our end — text Steven at ${env.SUPPORT_CELL}.`;
     }
 
-    await supabase.from("events").insert({
-      business_id: ownerBusiness.id,
-      type: "owner_command",
-      data: { message: body, reply: replyText },
-    });
+    if (isOnboarded) {
+      await supabase.from("events").insert({
+        business_id: ownerBusiness.id,
+        type: "owner_command",
+        data: { message: body, reply: replyText },
+      });
+    }
 
     await sendSms(from, replyText);
     return EMPTY_TWIML;

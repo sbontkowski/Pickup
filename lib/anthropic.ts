@@ -44,6 +44,13 @@ export async function runToolLoop(params: {
       messages,
     });
 
+    if (response.stop_reason === "max_tokens") {
+      // The response (text and/or a tool call) was cut off mid-generation —
+      // never treat this as a normal, complete reply.
+      console.warn(`runToolLoop hit max_tokens (limit=${params.maxTokens ?? AGENT_MAX_TOKENS}) on iteration ${iteration}.`);
+      return { text: "", hitIterationCap: true };
+    }
+
     if (response.stop_reason !== "tool_use") {
       return { text: extractText(response.content), hitIterationCap: false };
     }
