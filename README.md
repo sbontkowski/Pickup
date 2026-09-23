@@ -84,10 +84,28 @@ owner's behalf ("text Maria we're running 20 late"), opens or closes
 bookable windows ("close Friday afternoon," "open Sat 8-12"), and
 pauses/resumes automatic text-backs — all verified against a live server.
 Anything outside that scope gets the spec's exact fallback: "I can't do
-that yet — text Steven at {`SUPPORT_CELL`}." Not yet built (needs Vercel
-Cron, coming in Phase 6): the two time-delayed Live Line nudges — "10
-minutes after the last customer message" and "missed call, no reply after
-30 minutes." Booking and escalation Live Lines already work (Phase 3).
+that yet — text Steven at {`SUPPORT_CELL`}."
+
+Phase 6 done and verified: client onboarding-by-text (ten questions, one
+at a time, accepting messy answers, a confirm-before-save summary — see
+`lib/onboarding-agent.ts`) and the Monday 7 AM Weekly Revenue Recovered
+text (`lib/weekly-report.ts`, `/api/cron/weekly-report`, scheduled via
+`vercel.json`). The owner agent also picked up a fourth tool,
+`update_facts`, so "update: we now charge $99 diagnostic" works any time
+after onboarding, per the spec.
+
+**Two things intentionally not built, both documented simplifications:**
+- The two time-delayed Live Line nudges from the spec — "10 minutes after
+  the last customer message" and "missed call, no reply after 30
+  minutes" — need a cron that runs every few minutes, which is a Vercel
+  Pro feature (Hobby cron jobs run at most once a day). Booking and
+  escalation Live Lines already work (Phase 3); this is the one piece of
+  "Owner alerts" left on the table for a Hobby-plan launch.
+- The weekly report's "Replied" count from the spec's example message is
+  dropped — in this implementation every customer reply immediately
+  becomes a lead row (there's no separate "replied but never became a
+  lead" state to count), so a "Replied" number would just duplicate
+  "Leads." The report shows Leads/Booked/Deposits instead.
 
 ## One-time setup
 
@@ -155,6 +173,8 @@ for that part.
 | `npm run test:stripe` | Tests the deposit-paid and new-client-signup webhook flows (needs `npm run dev` running) |
 | `npm run test:stripe-connect` | Walks through Stripe Connect onboarding for the seed business and confirms a deposit routes to it (needs `npm run dev` running; prints a URL for you to open once) |
 | `npm run test:owner` | Tests every ask-your-desk owner command (needs `npm run dev` running) |
+| `npm run test:onboarding` | Runs a full ten-question onboarding conversation for a fresh business (needs `npm run dev` running) |
+| `npm run test:weekly-report` | Triggers a dry-run weekly report for your seed business (needs `npm run dev` running) |
 | `npm run lint` | Checks code style |
 | `npx tsc --noEmit` | Type-checks the whole project |
 

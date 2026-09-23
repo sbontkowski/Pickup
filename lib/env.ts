@@ -52,4 +52,10 @@ export const env = {
   get SUPPORT_CELL() {
     return required("SUPPORT_CELL");
   },
+  // Vercel automatically sends this as `Authorization: Bearer <value>` on
+  // requests it makes to scheduled Cron routes, once set in project env
+  // vars — protects the weekly-report endpoint from public triggering.
+  get CRON_SECRET() {
+    return required("CRON_SECRET");
+  },
 };
