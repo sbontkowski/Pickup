@@ -3,8 +3,7 @@ import { getStripeClient } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getTwilioClient } from "@/lib/twilio";
 import { env } from "@/lib/env";
-
-const ANSWER_PLAN_CENTS = 39900;
+import { ANSWER_PLAN_CENTS } from "@/lib/pricing";
 
 async function sendSms(to: string, body: string) {
   try {

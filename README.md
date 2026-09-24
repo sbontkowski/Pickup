@@ -107,6 +107,20 @@ after onboarding, per the spec.
   lead" state to count), so a "Replied" number would just duplicate
   "Leads." The report shows Leads/Booked/Deposits instead.
 
+**Admin console (`/admin`) done and verified.** Not one of SPEC.md's
+original 7 phases — built from a separate "aidentity operator console"
+spec, scoped down to run against this app's existing tables rather than a
+new schema (no ingestion wizard, no automated carrier/TrustHub phone
+provisioning — those stay out of scope until asked for again). Four
+screens: a Clients list (status, days live, conversations/bookings this
+week, MRR, sorted attention-first), a Client detail page (Conversations,
+Bookings, Facts, Phone, Settings tabs), an Attention queue (stuck Stripe
+Connect onboarding, escalated leads with no follow-up, failed text
+deliveries, businesses with no conversations in 7 days, past-due Stripe
+subscriptions), and a read-only Money page mirroring live Stripe
+subscription data. See "Admin console setup" below for login and the
+incident-response note.
+
 ## One-time setup
 
 1. Copy the env template and fill it in as you get each key:
@@ -161,6 +175,25 @@ temporary webhook secret and simulate Stripe's webhook deliveries myself
 (signed the same way Stripe signs them) — you don't need to do anything
 for that part.
 
+## Admin console setup (`/admin`)
+
+1. Add `ADMIN_SESSION_SECRET` to `.env.local` (any random string —
+   `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`)
+   and to your Vercel project's env vars once deployed.
+2. Go to `/admin/login` and tap "Text me a login link." It texts a
+   one-time link to `SUPPORT_CELL` (your own cell — the app already treats
+   that number as yours) that's good for 10 minutes; opening it signs you
+   in for 7 days.
+3. **There's no session database** — logging in doesn't create a row
+   anywhere, so there's nothing to individually revoke. If a session is
+   ever compromised (a shared device, a leaked link), rotate
+   `ADMIN_SESSION_SECRET` in Vercel and redeploy — that invalidates every
+   outstanding `/admin` session at once, yours included, so you'll need to
+   log in again afterward.
+4. Facts and Settings edits on a client's detail page write an
+   `admin_edit` row to that business's `events` log, so there's always a
+   record of what changed and when.
+
 ## Everyday commands
 
 | Command | What it does |
@@ -175,6 +208,8 @@ for that part.
 | `npm run test:owner` | Tests every ask-your-desk owner command (needs `npm run dev` running) |
 | `npm run test:onboarding` | Runs a full ten-question onboarding conversation for a fresh business (needs `npm run dev` running) |
 | `npm run test:weekly-report` | Triggers a dry-run weekly report for your seed business (needs `npm run dev` running) |
+| `npm run test:admin-auth` | Verifies the `/admin` login/session gate, including that it doesn't leak onto Twilio/Stripe/health routes (needs `npm run dev` running) |
+| `npm run test:admin-metrics` | Checks the Attention queue's flag rules against fixture data (no server needed) |
 | `npm run lint` | Checks code style |
 | `npx tsc --noEmit` | Type-checks the whole project |
 
@@ -189,6 +224,11 @@ checklist. Not built yet (Phases 4–7).
 This section will cover rotating each of `SUPABASE_SERVICE_KEY`,
 `TWILIO_AUTH_TOKEN`, `ANTHROPIC_API_KEY`, and `STRIPE_SECRET_KEY` /
 `STRIPE_WEBHOOK_SECRET` without downtime. Not built yet.
+
+`ADMIN_SESSION_SECRET` is already covered above under "Admin console
+setup" — rotating it in Vercel and redeploying is also the way to log out
+every `/admin` session at once, since there's no session database to
+revoke rows from individually.
 
 ## When a text fails (fill in as later phases land)
 

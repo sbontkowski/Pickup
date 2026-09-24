@@ -67,4 +67,10 @@ export const env = {
   get CRON_SECRET() {
     return required("CRON_SECRET");
   },
+  // Signs the /admin magic-link and session tokens (see lib/admin/auth.ts).
+  // Stateless — there's no session table, so rotating this value is also
+  // how you kill every outstanding /admin session at once.
+  get ADMIN_SESSION_SECRET() {
+    return required("ADMIN_SESSION_SECRET");
+  },
 };
