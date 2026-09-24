@@ -1,0 +1,243 @@
+/* Shared primitives for the /admin console. Plain global CSS (no CSS
+   Modules, no framework) — matches the rest of the app's minimal-dependency
+   convention, just with the repeated table/chip/tab patterns factored out
+   instead of re-inlined on every page. One-off layout tweaks stay inline. */
+
+.admin-body {
+  font-family: system-ui, sans-serif;
+  color: #111827;
+  background: #f9fafb;
+  margin: 0;
+}
+
+.admin-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: #111827;
+  color: #f9fafb;
+}
+
+.admin-nav a {
+  color: #d1d5db;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.admin-nav a.admin-nav-active {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.admin-nav-title {
+  font-weight: 700;
+  color: #ffffff;
+  margin-right: auto;
+}
+
+.admin-nav form button {
+  background: none;
+  border: none;
+  color: #d1d5db;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.admin-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.admin-page h1 {
+  font-size: 1.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.9rem;
+}
+
+.admin-table th {
+  background: #f3f4f6;
+  font-weight: 600;
+  color: #374151;
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tr.admin-row-attention {
+  background: #fffbeb;
+}
+
+.admin-table a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.admin-chip {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.admin-chip-active,
+.admin-chip-paid,
+.admin-chip-confirmed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.admin-chip-trial,
+.admin-chip-trialing,
+.admin-chip-pending {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.admin-chip-paused,
+.admin-chip-past_due,
+.admin-chip-escalated {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.admin-chip-amber {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 1.25rem;
+}
+
+.admin-tab {
+  padding: 0.6rem 1rem;
+  text-decoration: none;
+  color: #6b7280;
+  font-size: 0.9rem;
+  border-bottom: 2px solid transparent;
+}
+
+.admin-tab.admin-tab-active {
+  color: #111827;
+  font-weight: 600;
+  border-bottom-color: #2563eb;
+}
+
+.admin-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.admin-card + .admin-card {
+  margin-top: 1rem;
+}
+
+.admin-form label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0.85rem 0 0.3rem;
+}
+
+.admin-form input[type="text"],
+.admin-form input[type="number"],
+.admin-form textarea,
+.admin-form select {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.admin-form textarea {
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+}
+
+.admin-button {
+  margin-top: 1rem;
+  padding: 0.55rem 1.1rem;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.admin-button-secondary {
+  background: #f3f4f6;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.admin-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.admin-muted {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.admin-stat-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-stat {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  min-width: 140px;
+}
+
+.admin-stat-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.admin-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 0.2rem;
+}

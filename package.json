@@ -15,7 +15,9 @@
     "test:stripe-connect": "tsx --env-file=.env.local scripts/test-stripe-connect.ts",
     "test:owner": "tsx --env-file=.env.local scripts/test-owner-agent.ts",
     "test:onboarding": "tsx --env-file=.env.local scripts/test-onboarding.ts",
-    "test:weekly-report": "tsx --env-file=.env.local scripts/test-weekly-report.ts"
+    "test:weekly-report": "tsx --env-file=.env.local scripts/test-weekly-report.ts",
+    "test:admin-auth": "tsx --env-file=.env.local scripts/test-admin-auth.ts",
+    "test:admin-metrics": "tsx --env-file=.env.local scripts/test-admin-metrics.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
